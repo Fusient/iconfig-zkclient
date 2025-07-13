@@ -3,11 +3,23 @@ plugins {
     id 'maven-publish'
     id 'signing'
     id 'jacoco'
+    id 'io.spring.dependency-management' version '1.1.4'
 }
 
+// 继承父POM配置
 group = 'com.ijson.ai'
 version = '1.0.0-SNAPSHOT'
+description = 'iconfig-zkclient - 自动加载配置客户端'
+
+// 项目特定配置
 archivesBaseName = 'iconfig-zkclient'
+
+// 父POM信息 (用于发布时的POM生成)
+ext {
+    parentGroupId = 'com.ijson.ai'
+    parentArtifactId = 'ai-parent-pom'
+    parentVersion = '1.0.0-SNAPSHOT'
+}
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -17,20 +29,42 @@ java {
 }
 
 repositories {
-    mavenCentral()
     mavenLocal()
+    mavenCentral()
+    // 如果父POM在私有仓库，可以添加：
+    // maven {
+    //     url 'https://your-private-repo.com/repository/maven-public/'
+    // }
+}
+
+// 依赖版本管理 - 模拟父POM的依赖管理
+dependencyManagement {
+    // 如果父POM可用，可以取消注释下面的行
+    // imports {
+    //     mavenBom "${parentGroupId}:${parentArtifactId}:${parentVersion}"
+    // }
+
+    // 本地依赖版本管理
+    dependencies {
+        dependency 'com.google.guava:guava:31.1-jre'
+        dependency 'org.apache.curator:curator-recipes:5.4.0'
+        dependency 'org.slf4j:slf4j-api:1.7.36'
+        dependency 'ch.qos.logback:logback-classic:1.2.12'
+        dependency 'junit:junit:4.13.2'
+        dependency 'org.mockito:mockito-core:4.11.0'
+    }
 }
 
 dependencies {
-    // 主要依赖
-    implementation 'com.google.guava:guava:31.1-jre'
-    implementation 'org.apache.curator:curator-recipes:5.4.0'
-    implementation 'org.slf4j:slf4j-api:1.7.36'
-    implementation 'ch.qos.logback:logback-classic:1.2.12'
-    
-    // 测试依赖
-    testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.mockito:mockito-core:4.11.0'
+    // 主要依赖 - 版本由父POM管理
+    implementation 'com.google.guava:guava'
+    implementation 'org.apache.curator:curator-recipes'
+    implementation 'org.slf4j:slf4j-api'
+    implementation 'ch.qos.logback:logback-classic'
+
+    // 测试依赖 - 版本由父POM管理
+    testImplementation 'junit:junit'
+    testImplementation 'org.mockito:mockito-core'
 }
 
 compileJava {
@@ -99,6 +133,8 @@ publishing {
                 name = 'iconfig-zkclient'
                 description = '自动加载配置客户端'
                 url = 'http://www.ijson.com'
+
+                // 父POM信息将在POM生成时自动添加
                 
                 licenses {
                     license {
