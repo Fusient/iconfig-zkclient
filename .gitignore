@@ -1,10 +1,252 @@
-target/
-.DS_Store
-*.un~
-*.iml
-*/*.iml
-.idea/
-*.swp
-rebel.xml
-logs/
+# ===================================================================
+# Java & Gradle 项目 .gitignore 文件
+# ===================================================================
+
+# ===================================================================
+# Gradle 构建文件
+# ===================================================================
 build/
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# ===================================================================
+# Maven 构建文件 (保留以防需要)
+# ===================================================================
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# ===================================================================
+# Java 编译文件
+# ===================================================================
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# ===================================================================
+# IDE 配置文件
+# ===================================================================
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# VS Code
+.vscode/
+
+# ===================================================================
+# 操作系统文件
+# ===================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~.nib
+local.properties
+.loadpath
+.recommenders
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===================================================================
+# 日志文件
+# ===================================================================
+logs/
+*.log
+*.log.*
+log/
+*.out
+
+# ===================================================================
+# 临时文件和缓存
+# ===================================================================
+*.tmp
+*.temp
+*.cache
+.cache/
+tmp/
+temp/
+
+# ===================================================================
+# 版本控制
+# ===================================================================
+.svn/
+.hg/
+.bzr/
+
+# ===================================================================
+# 编辑器文件
+# ===================================================================
+
+# Vim
+*.swp
+*.swo
+*.un~
+Session.vim
+.netrwhist
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+
+# ===================================================================
+# 开发工具
+# ===================================================================
+rebel.xml
+.rebel.xml.bak
+
+# JRebel
+rebel.xml
+.rebel.xml.bak
+
+# Spring Boot DevTools
+.spring-boot-devtools.properties
+
+# ===================================================================
+# 测试覆盖率报告
+# ===================================================================
+.jacoco/
+jacoco.exec
+*.exec
+
+# ===================================================================
+# 安全和配置文件
+# ===================================================================
+# 敏感配置文件
+application-local.properties
+application-dev.properties
+application-prod.properties
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# ===================================================================
+# 依赖和包管理
+# ===================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===================================================================
+# 数据库文件
+# ===================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.h2.db
+
+# ===================================================================
+# 文档生成
+# ===================================================================
+/docs/build/
+/docs/.vuepress/dist/
+
+# ===================================================================
+# 自定义忽略 (项目特定)
+# ===================================================================
+# 添加项目特定的忽略规则
+
+# 配置文件备份
+*.properties.bak
+*.xml.bak
+*.yml.bak
+*.yaml.bak
+
+# 性能分析文件
+*.hprof
+*.prof
+
+# 部署相关
+deploy/
+dist/
+release/

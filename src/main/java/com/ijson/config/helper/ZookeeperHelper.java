@@ -6,6 +6,8 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.Charset;
 import java.util.List;
@@ -14,21 +16,72 @@ import static com.ijson.config.base.ConfigConstants.UTF8;
 
 /**
  * @author *
- * zookeeper工具类
+ *         zookeeper工具类
  */
 public class ZookeeperHelper {
 
-    private static CuratorFramework curator = null;
+    private static final Logger log = LoggerFactory.getLogger(ZookeeperHelper.class);
+    private static volatile CuratorFramework curator = null;
+    private static final Object lock = new Object();
+
+    static {
+        // 添加JVM关闭钩子
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            log.info("Shutting down ZooKeeper client...");
+            closeCurator();
+        }, "zookeeper-shutdown"));
+    }
 
     private ZookeeperHelper() {
     }
 
     public static void setCurator(CuratorFramework curator) {
-        ZookeeperHelper.curator = curator;
+        synchronized (lock) {
+            if (ZookeeperHelper.curator != null &&
+                    ZookeeperHelper.curator != curator) {
+                // 关闭旧的客户端
+                try {
+                    ZookeeperHelper.curator.close();
+                    log.info("Closed previous ZooKeeper client");
+                } catch (Exception e) {
+                    log.warn("Error closing previous ZooKeeper client", e);
+                }
+            }
+            ZookeeperHelper.curator = curator;
+            log.info("ZooKeeper client set successfully");
+        }
     }
 
     public static CuratorFramework getCurator() {
         return curator;
+    }
+
+    /**
+     * 关闭ZooKeeper客户端
+     */
+    public static void closeCurator() {
+        synchronized (lock) {
+            if (curator != null) {
+                try {
+                    curator.close();
+                    log.info("ZooKeeper client closed successfully");
+                } catch (Exception e) {
+                    log.error("Error closing ZooKeeper client", e);
+                } finally {
+                    curator = null;
+                }
+            }
+        }
+    }
+
+    /**
+     * 检查ZooKeeper连接状态
+     * 
+     * @return true if connected, false otherwise
+     */
+    public static boolean isConnected() {
+        CuratorFramework client = getCurator();
+        return client != null && client.getZookeeperClient().isConnected();
     }
 
     public static String newString(byte[] data) {
@@ -109,7 +162,8 @@ public class ZookeeperHelper {
         }
     }
 
-    public static void create(CuratorFramework client, String path, byte[] payload, CreateMode mode, List<ACL> aclList) {
+    public static void create(CuratorFramework client, String path, byte[] payload, CreateMode mode,
+            List<ACL> aclList) {
         try {
             client.create().creatingParentsIfNeeded().withMode(mode).withACL(aclList).forPath(path, payload);
         } catch (Exception e) {

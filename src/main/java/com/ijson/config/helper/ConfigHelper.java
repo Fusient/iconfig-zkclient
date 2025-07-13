@@ -40,12 +40,71 @@ public class ConfigHelper {
 
     public static final Logger log = LoggerFactory.getLogger(ConfigHelper.class);
 
-    public static ThreadPoolExecutor EXECUTOR =
-            new ThreadPoolExecutor(0, 1, 5, TimeUnit.MINUTES, new LinkedBlockingQueue<>(), new ThreadFactoryBuilder().setDaemon(true)
-                    .setNameFormat("config-load-%d")
-                    .build());
+    // 线程池配置常量
+    private static final int CORE_POOL_SIZE = 1;
+    private static final int MAX_POOL_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors());
+    private static final int QUEUE_CAPACITY = 100;
+    private static final long KEEP_ALIVE_TIME = 60L;
+
+    public static final ThreadPoolExecutor EXECUTOR = createOptimizedExecutor();
 
     private ConfigHelper() {
+    }
+
+    /**
+     * 创建优化的线程池
+     * 
+     * @return 配置优化的ThreadPoolExecutor
+     */
+    private static ThreadPoolExecutor createOptimizedExecutor() {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                CORE_POOL_SIZE,
+                MAX_POOL_SIZE,
+                KEEP_ALIVE_TIME, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(QUEUE_CAPACITY),
+                new ThreadFactoryBuilder()
+                        .setDaemon(true)
+                        .setNameFormat("config-load-%d")
+                        .setUncaughtExceptionHandler(
+                                (t, e) -> log.error("Config loading thread {} failed", t.getName(), e))
+                        .build(),
+                new ThreadPoolExecutor.CallerRunsPolicy());
+
+        // 添加JVM关闭钩子
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            log.info("Shutting down config executor...");
+            shutdownExecutor(executor);
+        }, "config-executor-shutdown"));
+
+        return executor;
+    }
+
+    /**
+     * 优雅关闭线程池
+     * 
+     * @param executor 要关闭的线程池
+     */
+    private static void shutdownExecutor(ThreadPoolExecutor executor) {
+        if (executor == null || executor.isShutdown()) {
+            return;
+        }
+
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                log.warn("Executor did not terminate gracefully, forcing shutdown");
+                executor.shutdownNow();
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    log.error("Executor did not terminate");
+                }
+            } else {
+                log.info("Config executor shutdown successfully");
+            }
+        } catch (InterruptedException e) {
+            log.warn("Interrupted while waiting for executor termination");
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     public static Path getConfigPath() {
@@ -111,7 +170,7 @@ public class ConfigHelper {
         if (basePath != null) {
             return basePath;
         }
-        //查找若干文件以便找到classes根目录
+        // 查找若干文件以便找到classes根目录
         String files = ConfigConstants.CONFIG_FILES;
         for (String i : Splitter.on(COMMA).split(files)) {
             String s = scanResource(i);
@@ -214,7 +273,7 @@ public class ConfigHelper {
             props.put(PROCESS_PROFILE, fileProfile);
         }
         Config c = new Config();
-        //查找顺序:系统默认 < 文件配置 < 环境变量配置
+        // 查找顺序:系统默认 < 文件配置 < 环境变量配置
         c.putAll(defaults).putAll(fileConfig.getAll()).putAll(props);
         return c;
     }
@@ -261,8 +320,8 @@ public class ConfigHelper {
     }
 
     public static CuratorFramework newClient(String connectString,
-                                             String scheme,
-                                             String password) throws InterruptedException {
+            String scheme,
+            String password) throws InterruptedException {
         log.info("zookeeper.servers={}", connectString);
         RetryPolicy policy = new BoundedExponentialBackoffRetry(1000, 60000, 25);
         CuratorFrameworkFactory.Builder builder = CuratorFrameworkFactory.builder();
@@ -275,11 +334,9 @@ public class ConfigHelper {
         return client;
     }
 
-
     private static class LazyHolder2 {
         private static final Path CONFIG_PATH = scanConfigPath();
     }
-
 
     private static class LazyHolder3 {
         private static final Config CONFIG = scanApplicationConfig();

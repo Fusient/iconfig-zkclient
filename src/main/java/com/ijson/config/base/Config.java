@@ -1,6 +1,5 @@
 package com.ijson.config.base;
 
-
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -8,8 +7,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.Charset;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.ijson.config.base.ConfigConstants.UTF8;
 
@@ -20,8 +24,29 @@ public class Config extends Properties {
 
     public static final Logger log = LoggerFactory.getLogger(Config.class);
 
-    private boolean parsed = false;
+    private volatile boolean parsed = false;
+    private volatile String contentHash;
     private byte[] content;
+
+    /**
+     * 计算内容哈希值，用于判断内容是否变化
+     * 
+     * @param content 内容字节数组
+     * @return 哈希值字符串
+     */
+    private String calculateContentHash(byte[] content) {
+        if (content == null || content.length == 0) {
+            return "";
+        }
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] hash = md.digest(content);
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            // 降级到简单哈希
+            return String.valueOf(Arrays.hashCode(content));
+        }
+    }
 
     public synchronized byte[] getContent() {
         if (content == null) {
@@ -29,9 +54,12 @@ public class Config extends Properties {
             if (m.isEmpty()) {
                 content = new byte[0];
             } else {
-                StringBuilder sbd = new StringBuilder();
-                for (Map.Entry<String, String> i : m.entrySet()) {
-                    sbd.append(i.getKey()).append('=').append(i.getValue()).append('\n');
+                // 预估容量，减少StringBuilder扩容次数
+                int estimatedSize = m.size() * 32; // 估算每个键值对平均32字符
+                StringBuilder sbd = new StringBuilder(estimatedSize);
+                for (Map.Entry<String, String> entry : m.entrySet()) {
+                    sbd.append(entry.getKey()).append('=')
+                            .append(entry.getValue()).append('\n');
                 }
                 content = sbd.toString().getBytes(UTF8);
             }
@@ -40,13 +68,16 @@ public class Config extends Properties {
     }
 
     public void copyOf(String s) {
-        this.content = s.getBytes(UTF8);
-        parsed = false;
+        copyOf(s.getBytes(UTF8));
     }
 
     public void copyOf(byte[] content) {
-        this.content = content;
-        parsed = false;
+        String newHash = calculateContentHash(content);
+        if (!Objects.equals(this.contentHash, newHash)) {
+            this.content = content;
+            this.contentHash = newHash;
+            this.parsed = false;
+        }
     }
 
     @Override
@@ -81,35 +112,51 @@ public class Config extends Properties {
     }
 
     private synchronized void parse() {
-        if (!parsed) {
-            Map<String, String> m = Maps.newLinkedHashMap();
-            final byte[] bytes = content;
-            if (bytes != null) {
-                String txt = new String(bytes, UTF8);
-                for (String i : lines(txt, true)) {
-                    int pos = i.indexOf('=');
-                    if (pos != -1) {
-                        String k = i.substring(0, pos).trim();
-                        int next = pos + 1;
-                        if (next < i.length()) {
-                            try {
-                                m.put(k, unEscapeJava(i.substring(next).trim()));
-                            } catch (Exception e) {
-                                log.error("cannot escape:{}, content={}", i, content);
-                            }
-                        } else {
-                            m.put(k, "");
-                        }
-                    }
-                }
-                super.copyOf(m);
-            }
+        if (!parsed && content != null) {
+            // 预估Map容量，减少扩容次数
+            Map<String, String> m = Maps.newLinkedHashMapWithExpectedSize(32);
+            String txt = new String(content, UTF8);
+
+            // 优化字符串处理，直接按行分割
+            parseConfigContent(txt, m);
+            super.copyOf(m);
             parsed = true;
         }
     }
 
     /**
+     * 解析配置内容
+     * 
+     * @param txt 配置文本
+     * @param m   存储解析结果的Map
+     */
+    private void parseConfigContent(String txt, Map<String, String> m) {
+        String[] lines = txt.split("\n");
+        for (String line : lines) {
+            line = line.trim();
+            if (line.isEmpty() || line.startsWith("#") || line.startsWith("//")) {
+                continue;
+            }
+
+            int pos = line.indexOf('=');
+            if (pos != -1) {
+                String key = line.substring(0, pos).trim();
+                String value = pos + 1 < line.length() ? line.substring(pos + 1).trim() : "";
+
+                try {
+                    m.put(key, unEscapeJava(value));
+                } catch (Exception e) {
+                    log.error("Cannot escape value for key '{}': {}", key, value, e);
+                    // 即使转义失败，也保存原始值
+                    m.put(key, value);
+                }
+            }
+        }
+    }
+
+    /**
      * copyFrom StringEscapeUtils.unescapeJava
+     * 
      * @param value
      * @return
      */
