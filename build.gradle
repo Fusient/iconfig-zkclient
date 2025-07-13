@@ -1,0 +1,171 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'signing'
+    id 'jacoco'
+}
+
+group = 'com.ijson.ai'
+version = '1.0.0-SNAPSHOT'
+archivesBaseName = 'iconfig-zkclient'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    withSourcesJar()
+    withJavadocJar()
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    // 主要依赖
+    implementation 'com.google.guava:guava:31.1-jre'
+    implementation 'org.apache.curator:curator-recipes:5.4.0'
+    implementation 'org.slf4j:slf4j-api:1.7.36'
+    implementation 'ch.qos.logback:logback-classic:1.2.12'
+    
+    // 测试依赖
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:4.11.0'
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+}
+
+compileTestJava {
+    options.encoding = 'UTF-8'
+}
+
+javadoc {
+    options.encoding = 'UTF-8'
+    options.charSet = 'UTF-8'
+    options.author = true
+    options.version = true
+    options.use = true
+    options.windowTitle = 'iconfig-zkclient'
+    options.docTitle = 'iconfig-zkclient'
+    options.locale = 'en_US'
+    
+    if (JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
+}
+
+jar {
+    exclude 'log4j.xml'
+    
+    manifest {
+        attributes(
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'ijson.com'
+        )
+    }
+}
+
+test {
+    useJUnit()
+    
+    // 跳过测试（对应Maven配置中的skip=true）
+    enabled = false
+    
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.8"
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            
+            pom {
+                name = 'iconfig-zkclient'
+                description = '自动加载配置客户端'
+                url = 'http://www.ijson.com'
+                
+                licenses {
+                    license {
+                        name = 'The Apache Software License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        distribution = 'repo'
+                    }
+                }
+                
+                developers {
+                    developer {
+                        name = 'cuiyongxu'
+                        email = 'cuiyongxu@gmail.com'
+                        url = 'https://www.ijson.net'
+                    }
+                }
+                
+                scm {
+                    url = 'https://github.com/Fusient/iconfig-zkclient'
+                    connection = 'scm:git:https://github.com/Fusient/iconfig-zkclient.git'
+                    developerConnection = 'scm:git:https://github.com/Fusient/iconfig-zkclient.git'
+                    tag = 'HEAD'
+                }
+            }
+        }
+    }
+    
+    repositories {
+        maven {
+            name = "OSSRH"
+            def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+            
+            credentials {
+                username = project.findProperty("ossrhUsername") ?: ""
+                password = project.findProperty("ossrhPassword") ?: ""
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.maven
+}
+
+// 只在release profile时启用签名
+gradle.taskGraph.whenReady { taskGraph ->
+    if (!taskGraph.hasTask(':publishToSonatype')) {
+        signing.required = false
+    }
+}
+
+// 自定义任务：发布到Sonatype
+task publishToSonatype {
+    dependsOn 'publishMavenPublicationToOSSRHRepository'
+    group = 'publishing'
+    description = 'Publishes the Maven publication to OSSRH repository'
+}
+
+// 构建时的额外配置
+tasks.withType(JavaCompile) {
+    options.compilerArgs += ['-Xlint:unchecked', '-Xlint:deprecation']
+}
+
+// Wrapper配置
+wrapper {
+    gradleVersion = '7.6'
+    distributionType = Wrapper.DistributionType.ALL
+}

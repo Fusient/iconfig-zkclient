@@ -1,4 +1,5 @@
 build:
-    script:
-       - pwd
-       - mvn test sonar:sonar -Dmaven.test.failure.ignore=true -Dsonar.core.codeCoveragePlugin=jacoco
+  script:
+    - pwd
+    - chmod +x gradlew
+    - ./gradlew clean build test jacocoTestReport sonarqube -Dsonar.core.codeCoveragePlugin=jacoco
